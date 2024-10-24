@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Game Client</title>
+  </head>
+  <body>
+    <h1>Game Client</h1>
+
+    <div id="game-status"></div>
+    <div id="game-prompt"></div>
+
+    <input type="text" id="answer" placeholder="Type your answer here" />
+    <button onclick="submitAnswer()">Submit Answer</button>
+
+    <script>
+      // Replace with your actual WebSocket URL
+      const socketUrl = "ws://localhost:4000/socket/websocket";
+      let socket;
+      let gameChannel;
+
+      // Connect to WebSocket
+      function connectSocket() {
+        socket = new WebSocket(socketUrl);
+
+        socket.onopen = function () {
+          console.log("Connected to the WebSocket server");
+
+          // Join the game
+          joinGame("game_id_123", "player_id_abc");
+        };
+
+        socket.onmessage = function (event) {
+          const message = JSON.parse(event.data);
+          handleMessage(message);
+        };
+
+        socket.onclose = function () {
+          console.log("WebSocket connection closed");
+        };
+      }
+
+      // Function to join the game
+      function joinGame(gameId, playerId) {
+        // Sending the 'phx_join' message manually, which Phoenix expects
+        gameChannel = {
+          topic: `game:${gameId}`,
+          event: "phx_join",
+          payload: {},
+          ref: 1, // A reference for tracking the message, Phoenix increments this
+        };
+
+        socket.send(JSON.stringify(gameChannel));
+
+        // Save player info in local storage or as variables
+        localStorage.setItem("playerId", playerId);
+      }
+
+      // Submit answer to the server
+      function submitAnswer() {
+        const answerInput = document.getElementById("answer");
+        const answer = answerInput.value.trim();
+        if (!answer) return;
+
+        const message = {
+          topic: `game:game_id_123`,
+          event: "submit_answer",
+          payload: {
+            answer: answer,
+            player_id: localStorage.getItem("playerId"),
+          },
+          ref: 2,
+        };
+
+        socket.send(JSON.stringify(message));
+
+        answerInput.value = "";
+      }
+
+      // Handle incoming messages from the server
+      function handleMessage(message) {
+        console.log("Received message: ", message);
+
+        switch (message.event) {
+          case "game_started":
+            updateGameStatus("Game Started!");
+            updateGamePrompt(message.payload.game.prompt);
+            break;
+
+          case "update_game":
+            updateGamePrompt(message.payload.game.prompt);
+            break;
+
+          default:
+            console.log("Unknown event:", message.event);
+        }
+      }
+
+      // Update the game status on the client
+      function updateGameStatus(status) {
+        const statusElement = document.getElementById("game-status");
+        statusElement.textContent = status;
+      }
+
+      // Update the game prompt (text or question) for the current round
+      function updateGamePrompt(prompt) {
+        const promptElement = document.getElementById("game-prompt");
+        promptElement.textContent = prompt || "Waiting for players...";
+      }
+
+      // Initialize the WebSocket connection
+      connectSocket();
+    </script>
+  </body>
+</html>
