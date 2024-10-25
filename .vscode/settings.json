@@ -1,3 +1,6 @@
 {
-  "elixirLS.projectDir": "./server"
+  "elixirLS.projectDir": "./server",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false
 }

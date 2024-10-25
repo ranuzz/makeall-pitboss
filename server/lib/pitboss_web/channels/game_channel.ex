@@ -57,6 +57,11 @@ defmodule PitbossWeb.GameChannel do
     end
   end
 
+  def handle_in("hearbeat", _params, socket) do
+    Logger.debug("heartbeat received")
+    {:reply, :ok, socket}
+  end
+
   def handle_info({:new_round, prompt}, socket) do
     push(socket, "new_round", %{prompt: prompt})
     {:noreply, socket}
