@@ -3,14 +3,34 @@ package dev.makeall.pitboss
 import dev.makeall.pitboss.server.createMessage
 import dev.makeall.pitboss.server.getWebSocketClient
 import dev.makeall.pitboss.test.testHandler
-import java.util.UUID
+import dev.makeall.pitboss.utils.debug
+import dev.makeall.pitboss.utils.generateUniqueId
+import dev.makeall.pitboss.utils.globalConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
+import okhttp3.WebSocket
 
-fun generateUniqueId(): String {
-  return UUID.randomUUID().toString()
+fun handleUserInput(input: String, webSocket: WebSocket, gameId: String, playerId: String) {
+  when (input.trim()) {
+    "exit" -> {
+      println("Exiting...")
+      webSocket.close(1000, "User requested exit")
+      return
+    }
+    "status" -> {
+      println("Sending status request...")
+      webSocket.send(createMessage(gameId, playerId, "status"))
+    }
+    else -> {
+      println("Unknown command: $input")
+    }
+  }
 }
 
-suspend fun main(args: Array<String>) {
-  println("Running pitboss client")
+fun main(args: Array<String>) {
+  debug("Running pitboss client")
 
   var host = false
   var gameId: String = generateUniqueId()
@@ -18,7 +38,7 @@ suspend fun main(args: Array<String>) {
   val playerId = generateUniqueId()
 
   if (args.isEmpty()) {
-    println("usage: --host --join id --test testId")
+    debug("usage: --host --join id --test testId")
     return
   }
 
@@ -34,7 +54,7 @@ suspend fun main(args: Array<String>) {
           gameId = args[i + 1]
           i += 2 // Move to the next argument pair
         } else {
-          println("Error: --join requires a game ID")
+          debug("Error: --join requires a game ID")
           return
         }
       }
@@ -43,27 +63,67 @@ suspend fun main(args: Array<String>) {
           testId = args[i + 1]
           i += 2 // Move to the next argument pair
         } else {
-          println("Error: --api requires a test ID")
+          debug("Error: --api requires a test ID")
           return
         }
       }
+      "--verbose" -> {
+        globalConfig.verbose = true
+        i++
+      }
       else -> {
-        println("Unknown argument: ${args[i]}")
+        debug("Unknown argument: ${args[i]}")
         return
       }
     }
   }
 
-  val webSocket = getWebSocketClient()
+  val job = Job()
+  val scope = CoroutineScope(Dispatchers.Default + job)
 
-  if (host) {
-    println("You are hosting the game")
-    webSocket.send(createMessage(gameId, playerId, "phx_join"))
-  } else if (!gameId.isNullOrEmpty()) {
-    println("Joining Game ID: $gameId")
-    webSocket.send(createMessage(gameId, playerId, "heartbeat"))
-  } else if (!testId.isNullOrEmpty()) {
-    println("Running test ID: $testId")
-    testHandler(testId)
+  runBlocking {
+    debug("runBlocking: Starting")
+    val webSocket = getWebSocketClient(scope)
+    debug("runBlocking: WebSocket client obtained")
+
+    // Sleep for 5 seconds
+    debug("runBlocking: Sleeping for 5 seconds..")
+    Thread.sleep(5000)
+    debug("runBlocking: Woke up from sleep")
+
+    if (host) {
+      debug("runBlocking: You are hosting the game")
+      webSocket.send(createMessage(gameId, playerId, "phx_join"))
+      debug("runBlocking: Sent phx_join message")
+      webSocket.send(createMessage(gameId, playerId, "join_game"))
+      debug("runBlocking: Sent join_game message")
+    } else if (!gameId.isNullOrEmpty()) {
+      debug("runBlocking: Joining Game ID: $gameId")
+      webSocket.send(createMessage(gameId, playerId, "phx_join"))
+      debug("runBlocking: Sent phx_join message")
+      webSocket.send(createMessage(gameId, playerId, "join_game"))
+      debug("runBlocking: Sent join_game message")
+    } else if (!testId.isNullOrEmpty()) {
+      debug("runBlocking: Running test ID: $testId")
+      testHandler(testId)
+      debug("runBlocking: Test handler completed")
+    }
+
+    // Waiting loop for user input
+    debug("Enter 'exit' to quit or 'status' to request status.")
+    while (true) {
+      print("> ")
+      val input = readLine()
+      if (input != null) {
+        handleUserInput(input, webSocket, gameId, playerId)
+        if (input.trim() == "exit") break
+      }
+    }
+
+    debug("runBlocking: Cancelling the coroutine")
+    job.cancel()
+    debug("runBlocking: Coroutine cancelled")
   }
+
+  debug("all done with code")
 }

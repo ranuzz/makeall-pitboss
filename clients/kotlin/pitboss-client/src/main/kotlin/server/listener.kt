@@ -1,17 +1,27 @@
 package dev.makeall.pitboss.server
 
+import dev.makeall.pitboss.utils.debug
 import kotlinx.coroutines.*
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 
 // Coroutine-based WebSocket Listener
-class PitboassWebSocketListener(private val onOpenCallback: suspend (WebSocket) -> Unit) :
-        WebSocketListener() {
+class PitbossWebSocketListener(
+        private val scope: CoroutineScope,
+        private val onOpenCallback: suspend (WebSocket) -> Unit
+) : WebSocketListener() {
 
   override fun onOpen(webSocket: WebSocket, response: Response) {
-    // Resume the coroutine when the connection is open
-    GlobalScope.launch { onOpenCallback(webSocket) }
+    debug("onOpen: Coroutine about to launch")
+    val job =
+            scope.launch {
+              debug("onOpen: Coroutine started")
+              onOpenCallback(webSocket)
+              debug("onOpen: Coroutine completed")
+            }
+    debug("onOpen: Coroutine launched with job: ${job}")
+    debug("onOpen: Coroutine state: ${job.isActive}")
   }
 
   override fun onMessage(webSocket: WebSocket, text: String) {
@@ -19,11 +29,12 @@ class PitboassWebSocketListener(private val onOpenCallback: suspend (WebSocket) 
   }
 
   override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-    println("Closing WebSocket: $code / $reason")
+    debug("Closing WebSocket: $code / $reason")
     webSocket.close(1000, null)
+    debug("WebSocket closed")
   }
 
   override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-    println("Error: ${t.message}")
+    debug("Error: ${t.message}")
   }
 }

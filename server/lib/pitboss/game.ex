@@ -27,7 +27,7 @@ defmodule Pitboss.Game do
   end
 
   def handle_call({:join, player_id}, _from, %{state: state} = data) do
-    if length(state.players) < 8 do
+    if length(state.players) < 3 do
       new_state = %{state | players: [player_id | state.players]}
       {:reply, :ok, %{data | state: new_state}}
     else
@@ -112,7 +112,7 @@ defmodule Pitboss.Game do
   end
 
   defp generate_prompt do
-    "What's your favorite color?"
+    "What is the WORD?"
   end
 
   defp save_game_state(game_id, state) do

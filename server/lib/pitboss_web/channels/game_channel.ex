@@ -4,9 +4,6 @@ defmodule PitbossWeb.GameChannel do
   alias Pitboss.Game
 
   def join("game:" <> game_id, _params, socket) do
-    Logger.debug("join game")
-    Logger.debug(game_id)
-
     case Game.start_link(game_id) do
       {:ok, _pid} ->
         {:ok, assign(socket, :game_id, game_id)}

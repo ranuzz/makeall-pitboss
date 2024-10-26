@@ -4,8 +4,9 @@ defmodule PitbossWeb.UserSocket do
 
   channel "game:*", PitbossWeb.GameChannel
 
-  def connect(_params, socket, _connect_info) do
-    Logger.debug("joining")
+  def connect(params, socket, _connect_info) do
+    Logger.debug("connected")
+    Logger.debug(params)
     {:ok, socket}
   end
 
