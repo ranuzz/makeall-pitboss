@@ -28,7 +28,22 @@ fun messageParser(message: String) {
       userPrompt()
     }
     "phx_reply" -> {
-      serverMessage("ACK")
+      if (gameMessage.payload["status"] == "error") {
+        serverMessage("ERROR")
+        userPrompt()
+      } else {
+        serverMessage("PASSED")
+        userPrompt()
+      }
+    }
+    "game_over" -> {
+      serverMessage("Game Over")
+      println(gameMessage.payload["scores"])
+      userPrompt()
+    }
+    "phx_error" -> {
+      serverMessage("Error Occured")
+      println(gameMessage.payload)
       userPrompt()
     }
     else -> println("Unknown event ${gameMessage.event}")

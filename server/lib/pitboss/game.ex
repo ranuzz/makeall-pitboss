@@ -1,5 +1,6 @@
 defmodule Pitboss.Game do
   use GenServer
+  require Logger
   alias Pitboss.{Repo, GameState, GameRecord}
 
   def start_link(game_id) do
@@ -27,10 +28,14 @@ defmodule Pitboss.Game do
   end
 
   def handle_call({:join, player_id}, _from, %{state: state} = data) do
-    if length(state.players) < 3 do
+    IO.inspect(state)
+
+    if length(state.players) < 2 do
       new_state = %{state | players: [player_id | state.players]}
+      IO.inspect(new_state)
       {:reply, :ok, %{data | state: new_state}}
     else
+      Logger.debug(~c"game full")
       {:reply, {:error, :game_full}, data}
     end
   end
@@ -108,7 +113,7 @@ defmodule Pitboss.Game do
   end
 
   defp game_ended?(state) do
-    state.current_round > 10
+    state.current_round > 1
   end
 
   defp generate_prompt do
@@ -121,7 +126,7 @@ defmodule Pitboss.Game do
       players: state.players,
       scores: state.scores,
       rounds: state.current_round,
-      ended_at: NaiveDateTime.utc_now()
+      ended_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
     }
 
     Repo.insert(game_record)
