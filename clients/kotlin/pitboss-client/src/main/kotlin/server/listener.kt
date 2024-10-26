@@ -25,7 +25,8 @@ class PitbossWebSocketListener(
   }
 
   override fun onMessage(webSocket: WebSocket, text: String) {
-    println("Received message: $text")
+    debug("Received message: $text")
+    messageParser(text)
   }
 
   override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {

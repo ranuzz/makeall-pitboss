@@ -2,6 +2,7 @@ package dev.makeall.pitboss
 
 import dev.makeall.pitboss.server.createMessage
 import dev.makeall.pitboss.server.getWebSocketClient
+import dev.makeall.pitboss.server.handleUserInput
 import dev.makeall.pitboss.test.testHandler
 import dev.makeall.pitboss.utils.debug
 import dev.makeall.pitboss.utils.generateUniqueId
@@ -10,24 +11,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
-import okhttp3.WebSocket
-
-fun handleUserInput(input: String, webSocket: WebSocket, gameId: String, playerId: String) {
-  when (input.trim()) {
-    "exit" -> {
-      println("Exiting...")
-      webSocket.close(1000, "User requested exit")
-      return
-    }
-    "status" -> {
-      println("Sending status request...")
-      webSocket.send(createMessage(gameId, playerId, "status"))
-    }
-    else -> {
-      println("Unknown command: $input")
-    }
-  }
-}
 
 fun main(args: Array<String>) {
   debug("Running pitboss client")
@@ -92,6 +75,7 @@ fun main(args: Array<String>) {
     debug("runBlocking: Woke up from sleep")
 
     if (host) {
+      println("Game Id: $gameId")
       debug("runBlocking: You are hosting the game")
       webSocket.send(createMessage(gameId, playerId, "phx_join"))
       debug("runBlocking: Sent phx_join message")
