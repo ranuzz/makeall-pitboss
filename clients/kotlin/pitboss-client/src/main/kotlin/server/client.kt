@@ -8,8 +8,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
 
-suspend fun getWebSocketClient(scope: CoroutineScope): WebSocket {
-  val client = OkHttpClient()
+suspend fun getWebSocketClient(scope: CoroutineScope, client: OkHttpClient): WebSocket {
   // Coroutine function to open a WebSocket connection and send a message
   suspend fun connectAndAttachListener(): WebSocket = suspendCoroutine { continuation ->
     val request = Request.Builder().url(WEBSOCKET_BASE).build()

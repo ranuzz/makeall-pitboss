@@ -3,22 +3,26 @@ package dev.makeall.pitboss
 import dev.makeall.pitboss.server.createMessage
 import dev.makeall.pitboss.server.getWebSocketClient
 import dev.makeall.pitboss.server.handleUserInput
+import dev.makeall.pitboss.server.shutdown
 import dev.makeall.pitboss.test.testHandler
 import dev.makeall.pitboss.utils.debug
-import dev.makeall.pitboss.utils.generateUniqueId
+import dev.makeall.pitboss.utils.generateGameId
+import dev.makeall.pitboss.utils.generatePlayerId
 import dev.makeall.pitboss.utils.globalConfig
+import kotlin.system.exitProcess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
 
 fun main(args: Array<String>) {
   debug("Running pitboss client")
 
   var host = false
-  var gameId: String = generateUniqueId()
+  var gameId: String = generateGameId()
   var testId: String = "creategame"
-  val playerId = generateUniqueId()
+  val playerId = generatePlayerId()
 
   if (args.isEmpty()) {
     debug("usage: --host --join id --test testId")
@@ -63,16 +67,12 @@ fun main(args: Array<String>) {
 
   val job = Job()
   val scope = CoroutineScope(Dispatchers.Default + job)
+  val client = OkHttpClient()
 
   runBlocking {
     debug("runBlocking: Starting")
-    val webSocket = getWebSocketClient(scope)
+    val webSocket = getWebSocketClient(scope, client)
     debug("runBlocking: WebSocket client obtained")
-
-    // Sleep for 5 seconds
-    debug("runBlocking: Sleeping for 5 seconds..")
-    Thread.sleep(5000)
-    debug("runBlocking: Woke up from sleep")
 
     if (host) {
       println("Game Id: $gameId")
@@ -104,10 +104,13 @@ fun main(args: Array<String>) {
       }
     }
 
+    debug("runBlocking: shutdown the client")
+    shutdown(client)
     debug("runBlocking: Cancelling the coroutine")
     job.cancel()
     debug("runBlocking: Coroutine cancelled")
   }
 
-  debug("all done with code")
+  debug("Exiting pitboss client")
+  exitProcess(0) // Exit the application with status code 0
 }
