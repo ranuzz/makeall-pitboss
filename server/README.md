@@ -25,6 +25,7 @@ mix phx.new server --app pitboss --module Pitboss --database postgres --no-asset
 
 ## Project Structure
 
+```
 server/
 ├── lib/
 │ ├── pitboss/
@@ -50,3 +51,22 @@ server/
 │ ├── prod.exs
 │ └── test.exs
 └── mix.exs
+```
+
+## Running
+
+- run postgres server
+- populate the environment variables
+
+```
+export PITBOSS_POSTGRES_DATABASE=
+export PITBOSS_POSTGRES_PASSWORD=
+export PITBOSS_POSTGRES_PORT=
+export PITBOSS_SESSION_SALT=
+export PITBOSS_SECRET_KEY_BASE=
+```
+
+```
+source ../settings/.env.sh
+mix phx.server
+```
