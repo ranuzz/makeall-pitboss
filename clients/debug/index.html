@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Client Tester</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      #container {
+        display: flex;
+        flex-direction: column;
+        height: 95vh;
+      }
+      #connection-panel {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        gap: 10px;
+      }
+      #url {
+        flex: 1;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      #connect-button {
+        padding: 10px 15px;
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      #connect-button.disconnect {
+        background-color: #f44336;
+      }
+      #status {
+        margin-left: 10px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      #status.connected {
+        background-color: #4caf50;
+        color: white;
+      }
+      #status.disconnected {
+        background-color: #f44336;
+        color: white;
+      }
+      #status.connecting {
+        background-color: #ff9800;
+        color: white;
+      }
+      #main-content {
+        display: flex;
+        gap: 20px;
+        height: 100%;
+      }
+      .panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .panel h3 {
+        margin-top: 0;
+      }
+      #message {
+        flex: 1;
+        padding: 10px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        resize: none;
+      }
+      #send-button {
+        padding: 10px;
+        background-color: #2196f3;
+        border: none;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+      .log-panel {
+        flex: 1;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 10px;
+        overflow-y: auto;
+        background-color: #f9f9f9;
+      }
+      .log-entry {
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #eee;
+      }
+      .timestamp {
+        color: #666;
+        font-size: 12px;
+        margin-right: 8px;
+      }
+      .message-content {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .sent {
+        color: #2196f3;
+      }
+      .received {
+        color: #4caf50;
+      }
+      .error {
+        color: #f44336;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="connection-panel">
+        <input
+          type="text"
+          id="url"
+          placeholder="WebSocket URL (e.g., ws://localhost:8080)"
+          value="ws://localhost:4000/socket/websocket"
+        />
+        <button id="connect-button">Connect</button>
+        <div id="status" class="disconnected">Disconnected</div>
+      </div>
+
+      <div id="main-content">
+        <div class="panel">
+          <h3>Send Message</h3>
+          <textarea id="message" placeholder="Enter message to send"></textarea>
+          <button id="send-button" disabled>Send Message</button>
+          <h3>Sent Messages</h3>
+          <div id="sent-log" class="log-panel"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Server Responses</h3>
+          <div id="received-log" class="log-panel"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let socket = null;
+      const connectButton = document.getElementById("connect-button");
+      const sendButton = document.getElementById("send-button");
+      const statusEl = document.getElementById("status");
+      const urlEl = document.getElementById("url");
+      const messageEl = document.getElementById("message");
+      const sentLogEl = document.getElementById("sent-log");
+      const receivedLogEl = document.getElementById("received-log");
+
+      // Format timestamp
+      function getTimestamp() {
+        const now = new Date();
+        return now.toISOString().replace("T", " ").substring(0, 19);
+      }
+
+      // Add log entry
+      function addLogEntry(logEl, message, className = "") {
+        const entry = document.createElement("div");
+        entry.className = "log-entry";
+
+        const timestamp = document.createElement("span");
+        timestamp.className = "timestamp";
+        timestamp.textContent = getTimestamp();
+
+        const content = document.createElement("span");
+        content.className = `message-content ${className}`;
+        content.textContent = message;
+
+        entry.appendChild(timestamp);
+        entry.appendChild(content);
+        logEl.appendChild(entry);
+
+        // Auto scroll to bottom
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      // Handle connection status change
+      function updateConnectionStatus(status) {
+        statusEl.className = status;
+        statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+
+        if (status === "connected") {
+          connectButton.textContent = "Disconnect";
+          connectButton.classList.add("disconnect");
+          sendButton.disabled = false;
+        } else {
+          connectButton.textContent = "Connect";
+          connectButton.classList.remove("disconnect");
+          sendButton.disabled = true;
+        }
+      }
+
+      // Connect or disconnect websocket
+      connectButton.addEventListener("click", () => {
+        if (socket && socket.readyState <= 1) {
+          // 0 = CONNECTING, 1 = OPEN
+          socket.close();
+          return;
+        }
+
+        const url = urlEl.value.trim();
+        if (!url) {
+          addLogEntry(sentLogEl, "Please enter a valid WebSocket URL", "error");
+          return;
+        }
+
+        try {
+          updateConnectionStatus("connecting");
+          socket = new WebSocket(url);
+
+          socket.onopen = () => {
+            updateConnectionStatus("connected");
+            addLogEntry(sentLogEl, `Connected to ${url}`, "sent");
+          };
+
+          socket.onmessage = (event) => {
+            addLogEntry(receivedLogEl, event.data, "received");
+          };
+
+          socket.onerror = (error) => {
+            addLogEntry(receivedLogEl, "WebSocket error occurred", "error");
+            console.error("WebSocket error:", error);
+          };
+
+          socket.onclose = () => {
+            updateConnectionStatus("disconnected");
+            addLogEntry(sentLogEl, "Disconnected from server", "error");
+          };
+        } catch (error) {
+          updateConnectionStatus("disconnected");
+          addLogEntry(sentLogEl, `Connection error: ${error.message}`, "error");
+        }
+      });
+
+      // Send message
+      sendButton.addEventListener("click", () => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+          addLogEntry(sentLogEl, "Not connected to a server", "error");
+          return;
+        }
+
+        const message = messageEl.value;
+        if (!message.trim()) {
+          addLogEntry(sentLogEl, "Please enter a message to send", "error");
+          return;
+        }
+
+        try {
+          socket.send(message);
+          addLogEntry(sentLogEl, message, "sent");
+          messageEl.value = "";
+        } catch (error) {
+          addLogEntry(
+            sentLogEl,
+            `Error sending message: ${error.message}`,
+            "error"
+          );
+        }
+      });
+
+      // Allow sending messages with Ctrl+Enter
+      messageEl.addEventListener("keydown", (event) => {
+        if (event.ctrlKey && event.key === "Enter" && !sendButton.disabled) {
+          sendButton.click();
+        }
+      });
+
+      // Initialize
+      updateConnectionStatus("disconnected");
+    </script>
+  </body>
+</html>
